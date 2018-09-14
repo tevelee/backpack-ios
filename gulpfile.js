@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 const gulp = require('gulp');
+const svg2png = require('gulp-svg2png');
 const nunjucks = require('gulp-nunjucks');
 const data = require('gulp-data');
 const rename = require('gulp-rename');
@@ -56,6 +57,29 @@ const LEGIBLE_NAMES = [
   { identifier: 'Xxl', legibleName: 'extra extra large' },
   { identifier: 'Pill', legibleName: 'pill' },
 ];
+
+const SMALL_ICON_SIZE = parseInt(
+  tokens.properties.filter(token => token.name === 'spacingBase')[0].value,
+  10,
+);
+const LARGE_ICON_SIZE = parseInt(
+  tokens.properties.filter(token => token.name === 'spacingLg')[0].value,
+  10,
+);
+
+const ICON_CONFIG = {
+  scales: [2, 3],
+  iconSizes: [
+    {
+      name: 'lg',
+      size: LARGE_ICON_SIZE,
+    },
+    {
+      name: 'sm',
+      size: SMALL_ICON_SIZE,
+    },
+  ],
+};
 
 const format = s => s[0].toUpperCase() + _.camelCase(s.substring(1));
 
@@ -292,5 +316,27 @@ gulp.task('template', () => {
   return merge2(streams).pipe(gulp.dest(PATHS.output));
 });
 
-gulp.task('default', ['template']);
+gulp.task('icons', () => {
+  const streams = _.chain(ICON_CONFIG.iconSizes)
+    .flatMap(({ size, name: sizeName }) =>
+      ICON_CONFIG.scales.map(scale => ({
+        scale,
+        size,
+        sizeName,
+      })),
+    )
+    .map(({ scale, size, sizeName }) =>
+      gulp
+        .src('node_modules/bpk-svgs/dist/svgs/icons/**/*.svg')
+        .pipe(svg2png({ width: size * scale, height: size * scale }))
+        .pipe(rename(path => (path.basename += `-${sizeName}@${scale}`))),
+    )
+    .value();
+
+  return merge2(streams).pipe(
+    gulp.dest(path.join(PATHS.output, 'Icon', 'Assets')),
+  );
+});
+
+gulp.task('default', ['template', 'icons']);
 gulp.task('clean', () => del([PATHS.output], { force: true }));
